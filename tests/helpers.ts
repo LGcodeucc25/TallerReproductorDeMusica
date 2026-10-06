@@ -1,9 +1,10 @@
 import { expect } from 'vitest';
 import type { DoublyLinkedList } from '../src/core/DoublyLinkedList';
-import type { Song } from '../src/core/Song';
+import { spotifySongId, type LocalSong, type Song, type SpotifySong } from '../src/core/Song';
 
-/** Minimal song for tests: the id is the title. */
-export const song = (title: string, extra: Partial<Song> = {}): Song => ({
+/** Minimal local song for tests: the id is the title. */
+export const song = (title: string, extra: Partial<LocalSong> = {}): LocalSong => ({
+  source: 'local',
   id: title,
   title,
   artist: 'Artist',
@@ -12,6 +13,22 @@ export const song = (title: string, extra: Partial<Song> = {}): Song => ({
   fileName: `${title}.mp3`,
   file: new Blob(),
   cover: null,
+  addedAt: 0,
+  ...extra,
+});
+
+/** Minimal Spotify song for tests: the id is "spotify:<title>". */
+export const spotifySong = (title: string, extra: Partial<SpotifySong> = {}): SpotifySong => ({
+  source: 'spotify',
+  id: spotifySongId(title),
+  spotifyId: title,
+  spotifyUri: `spotify:track:${title}`,
+  title,
+  artist: 'Artist',
+  album: 'Album',
+  duration: 200,
+  coverUrl: null,
+  externalUrl: `https://open.spotify.com/track/${title}`,
   addedAt: 0,
   ...extra,
 });

@@ -121,6 +121,27 @@ export class PlaylistLibrary {
     });
   }
 
+  /**
+   * Adds songs to the end of the library unless a song with the same id is already
+   * there (a Spotify track always has the id "spotify:<id>", so it is never duplicated).
+   * Returns the library's own objects, in the given order, and which ones are new.
+   */
+  saveToLibrary(songs: readonly Song[]): { songs: Song[]; added: Song[] } {
+    const result: Song[] = [];
+    const added: Song[] = [];
+    for (const song of songs) {
+      const existing = this.allSongs.songs.findNode((saved) => saved.id === song.id)?.value;
+      if (existing) {
+        result.push(existing);
+      } else if (!added.some((fresh) => fresh.id === song.id)) {
+        added.push(song);
+        result.push(song);
+      }
+    }
+    this.allSongs.addMany(added);
+    return { songs: result, added };
+  }
+
   /** Adds existing library songs at the end of a playlist, skipping the ones already there. */
   addToPlaylist(targetId: string, songs: readonly Song[]) {
     const target = this.get(targetId);

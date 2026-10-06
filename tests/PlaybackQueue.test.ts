@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PlaybackQueue } from '../src/core/PlaybackQueue';
 import { Playlist } from '../src/core/Playlist';
-import { seeded, song, titlesOf } from './helpers';
+import { seeded, song, spotifySong, titlesOf } from './helpers';
 
 function playlistOf(...titles: string[]): Playlist {
   const playlist = new Playlist('p1', 'Test');
@@ -213,11 +213,77 @@ describe('PlaybackQueue', () => {
     queue.load(playlist, 'B', false);
     queue.moveSong('C', 'A', 'before');
     const saved = queue.snapshot();
-    expect(saved).toEqual({ sourceId: 'p1', order: ['C', 'A', 'B'], currentId: 'B', shuffle: false });
+    expect(saved).toEqual({ sourceId: 'p1', order: ['C', 'A', 'B'], currentId: 'B', shuffle: false, continuous: [] });
 
     const restored = new PlaybackQueue();
     restored.restore(playlist, saved.order.map((id) => song(id)), saved.currentId, saved.shuffle);
     expect(order(restored)).toEqual(['C', 'A', 'B']);
     expect(restored.current?.title).toBe('B');
   });
+
+  describe('mixed local and Spotify songs', () => {
+    const mixed = () => {
+      const playlist = new Playlist('mix', 'Mix');
+      playlist.addMany([song('L1'), spotifySong('S1'), spotifySong('S2'), song('L2'), spotifySong('S3')]);
+      return playlist;
+    };
+    const localOnly = (s: { source: string }) => s.source === 'local';
+
+    it('plays both sources the same way when Spotify is connected', () => {
+      const queue = new PlaybackQueue();
+      queue.load(mixed(), null, false);
+      expect([queue.next('off'), queue.next('off'), queue.next('off')].map((s) => s?.title)).toEqual(['S1', 'S2', 'L2']);
+      expect(queue.lastSkipped).toBe(0);
+    });
+
+    it('skips Spotify songs when disconnected, wrapping with repeat all', () => {
+      const queue = new PlaybackQueue();
+      queue.setPlayable(localOnly);
+      queue.load(mixed(), null, false);
+      expect(queue.current?.title).toBe('L1');
+      expect(queue.next('off')?.title).toBe('L2');
+      expect(queue.lastSkipped).toBe(2);
+      expect(queue.peekNext('off')).toBeNull(); // only S3 is left after L2
+      expect(queue.next('all')?.title).toBe('L1');
+      expect(queue.previous('all')?.title).toBe('L2');
+      expect(queue.upcoming(10, 'all').map((s) => s.title)).toEqual(['L1']);
+      expect(queue.hasNext('off')).toBe(false);
+    });
+
+    it('starts at the first playable song when the start is not playable', () => {
+      const playlist = new Playlist('p', 'P');
+      playlist.addMany([spotifySong('S1'), spotifySong('S2'), song('L1')]);
+      const queue = new PlaybackQueue();
+      queue.setPlayable(localOnly);
+      queue.load(playlist, null, false);
+      expect(queue.current?.title).toBe('L1');
+      expect(queue.lastSkipped).toBe(2);
+    });
+
+    it('a shuffled round never starts with an unplayable song and keeps every song once', () => {
+      const queue = new PlaybackQueue(seeded(21));
+      queue.setPlayable(localOnly);
+      queue.load(mixed(), 'L1', true);
+      const before = sortedTitles(queue);
+      for (let i = 0; i < 6; i++) {
+        const next = queue.next('all');
+        expect(next?.source).toBe('local');
+      }
+      expect(sortedTitles(queue)).toEqual(before);
+    });
+
+    it('returns null when nothing can play', () => {
+      const playlist = new Playlist('p', 'P');
+      playlist.addMany([spotifySong('S1'), spotifySong('S2')]);
+      const queue = new PlaybackQueue();
+      queue.setPlayable(localOnly);
+      queue.load(playlist, null, false);
+      expect(queue.next('all')).toBeNull();
+      expect(queue.peekNext('all')).toBeNull();
+    });
+  });
 });
+
+function sortedTitles(queue: PlaybackQueue): string[] {
+  return titlesOf(queue.songs).sort();
+}

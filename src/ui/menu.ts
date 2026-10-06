@@ -12,13 +12,13 @@ export function positionMenu(menu: HTMLElement, anchor: HTMLElement, align: 'sta
   menu.style.left = `${left}px`;
 }
 
-/** ArrowDown / ArrowUp (wrapping), Home and End move the focus between enabled items. */
+/** ArrowDown / ArrowUp (wrapping), Home and End move the focus between enabled items and links. */
 export function moveMenuFocus(menu: HTMLElement, event: KeyboardEvent): void {
   if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
   event.preventDefault();
-  const items = Array.from(menu.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
+  const items = Array.from(menu.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]'));
   if (items.length === 0) return;
-  const index = items.indexOf(document.activeElement as HTMLButtonElement);
+  const index = items.indexOf(document.activeElement as HTMLElement);
   let next: number;
   if (event.key === 'Home') next = 0;
   else if (event.key === 'End') next = items.length - 1;

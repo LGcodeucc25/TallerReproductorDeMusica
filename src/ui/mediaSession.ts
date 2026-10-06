@@ -36,6 +36,7 @@ export function updateMediaSession(song: Song | null, coverUrl: string | null, p
     session.metadata = null;
     return;
   }
-  const artwork = coverUrl && song.cover ? [{ src: coverUrl, type: song.cover.type }] : [];
+  const type = song.source === 'local' ? song.cover?.type : undefined;
+  const artwork = coverUrl ? [type ? { src: coverUrl, type } : { src: coverUrl }] : [];
   session.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: song.album, artwork });
 }

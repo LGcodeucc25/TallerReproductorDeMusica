@@ -3,210 +3,308 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="description" content="Reproductor de música en el navegador. Tus canciones se quedan en tu equipo." />
-    <meta name="theme-color" content="#17163a" />
+    <meta name="description" content="Liberty Music: reproduce, organiza y repite tu música, guardada en tu equipo." />
+    <meta name="theme-color" content="#0A0A0C" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <title>Enlace, reproductor de música</title>
+    <link href="https://fonts.googleapis.com/css2?family=Righteous&family=Outfit:wght@300;400;500;600&family=VT323&display=swap" rel="stylesheet" />
+    <title>Liberty Music</title>
   </head>
-  <body data-player-mode="panel">
+  <body data-screen="now" data-main="playlist" data-full="false">
+    <!-- Launch screen: shown on every load until the library is restored -->
+    <div class="splash" id="splash" role="status" aria-label="Cargando Liberty Music">
+      <span class="splash-band stripe-band" aria-hidden="true"></span>
+      <span class="splash-floor" aria-hidden="true"></span>
+      <div class="splash-card" aria-hidden="true">
+        <div class="splash-logo" data-splash-logo></div>
+        <span class="splash-music">music</span>
+        <div class="splash-load">
+          <span class="splash-bar"><span></span></span>
+          <span class="splash-text">CARGANDO TU BIBLIOTECA</span>
+        </div>
+      </div>
+    </div>
+
     <div class="app" id="app">
       <!-- Top bar -->
       <header class="topbar">
-        <div class="brand">
-          <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
-            <path d="M14 26h30" /><path d="M37 18l9 8-9 8" />
-            <path class="alt" d="M50 40H20" /><path class="alt" d="M27 32l-9 8 9 8" />
-          </svg>
-          <div>
-            <h1>Enlace</h1>
-            <p class="brand-sub">Tu música, en tu equipo</p>
-          </div>
-        </div>
-        <div class="topbar-actions">
+        <h1 class="wordmark"><span class="wordmark-name">Liberty</span> <span class="wordmark-sub">music</span></h1>
+        <nav class="view-switch" aria-label="Vistas">
+          <button class="view-switch-btn" id="nav-now" type="button">Reproduciendo</button>
+          <button class="view-switch-btn" id="nav-library" type="button">Biblioteca</button>
+        </nav>
+        <form class="topbar-search" id="global-search-form" role="search">
+          <span data-icon="search"></span>
+          <label class="sr-only" for="global-search">Buscar canciones en tu biblioteca y en Spotify</label>
+          <input id="global-search" type="search" placeholder="¿Qué quieres escuchar?" autocomplete="off" />
+          <span class="topbar-search-hint" aria-hidden="true">TU MÚSICA + SPOTIFY</span>
+        </form>
+        <div class="topbar-end">
           <p class="storage-meter" id="storage-meter" aria-live="polite"></p>
+          <button class="spotify-chip" id="spotify-chip" type="button" hidden><span class="spotify-dot" aria-hidden="true"></span><span id="spotify-chip-label"></span></button>
         </div>
       </header>
 
-      <!-- Library: the list of playlists -->
-      <aside class="sidebar panel" aria-labelledby="library-heading">
-        <div class="sidebar-head">
-          <h2 id="library-heading">Tu biblioteca</h2>
-          <button class="icon-btn" id="new-playlist-btn" type="button" aria-label="Crear playlist" title="Crear playlist">
-            <span data-icon="plus"></span>
-          </button>
-        </div>
-        <form class="new-playlist" id="new-playlist-form" hidden>
-          <label class="sr-only" for="new-playlist-name">Nombre de la playlist</label>
-          <input id="new-playlist-name" type="text" maxlength="60" autocomplete="off" placeholder="Nombre de la playlist" />
-          <div class="new-playlist-actions">
-            <button class="btn btn--primary btn--sm" type="submit">Crear</button>
-            <button class="btn btn--ghost btn--sm" id="new-playlist-cancel" type="button">Cancelar</button>
+      <!-- Screen 1: the player -->
+      <div class="screen screen--now" id="now-screen">
+        <section class="stage" id="stage" aria-label="Reproduciendo">
+          <div class="stage-top">
+            <span class="stage-from" id="stage-from">Sonando desde</span>
+            <button class="chip" id="stage-source" type="button"></button>
+            <span class="stage-spacer"></span>
+            <button class="pill" type="button" data-lyrics-toggle aria-pressed="false" title="Mostrar lyrics"><span data-icon="mic"></span>Lyrics</button>
+            <button class="round-btn" id="minimize-btn" type="button" aria-label="Minimizar reproductor" title="Minimizar"><span data-icon="collapse"></span></button>
+            <button class="round-btn" type="button" data-fullscreen-toggle aria-label="Pantalla completa" title="Pantalla completa"><span data-icon="expand"></span></button>
           </div>
-        </form>
-        <ol class="library-list" id="library-list" aria-label="Playlists"></ol>
-        <p class="sidebar-hint">Arrastra una canción sobre una playlist para agregarla.</p>
-      </aside>
 
-      <!-- Main view: the open playlist -->
-      <main class="main panel" id="main">
-        <section class="playlist-head" aria-live="polite">
-          <div class="playlist-art" id="playlist-art" aria-hidden="true"></div>
-          <div class="playlist-info">
-            <h2 class="playlist-name" id="playlist-name">Todas las canciones</h2>
-            <form class="rename-form" id="rename-form" hidden>
-              <label class="sr-only" for="rename-input">Nuevo nombre</label>
-              <input id="rename-input" type="text" maxlength="60" autocomplete="off" />
-              <button class="btn btn--primary btn--sm" type="submit">Guardar</button>
-              <button class="btn btn--ghost btn--sm" id="rename-cancel" type="button">Cancelar</button>
-            </form>
-            <p class="playlist-meta" id="playlist-meta">Sin canciones</p>
+          <div class="stage-main">
+            <div class="stage-deck" id="stage-cassette"><span class="stage-band stripe-band" aria-hidden="true"></span></div>
+            <section class="stage-lyrics lyrics-view" id="stage-lyrics" aria-label="Lyrics de la canción" tabindex="-1"></section>
+          </div>
+
+          <div class="eq-box"><canvas class="eq-canvas" id="stage-eq" aria-hidden="true"></canvas></div>
+
+          <div class="stage-controls">
+          <div class="counter-row">
+            <span class="counter" data-time="current">00:00</span>
+            <input class="tape-range" type="range" min="0" max="0" step="0.1" value="0" data-seek aria-label="Posición en la canción" disabled />
+            <span class="counter counter--total" data-time="total">00:00</span>
+          </div>
+
+          <div class="deck-row">
+            <div class="deck-keys" role="group" aria-label="Controles de reproducción">
+              <button class="key" type="button" data-transport="shuffle" aria-pressed="false" aria-label="Orden aleatorio: desactivado"><span data-icon="shuffle"></span></button>
+              <button class="key" type="button" data-transport="previous" aria-label="Canción anterior"><span data-icon="prev"></span></button>
+              <button class="key key--play" type="button" data-transport="toggle" aria-label="Reproducir"><span data-icon="play"></span></button>
+              <button class="key" type="button" data-transport="next" aria-label="Siguiente canción"><span data-icon="next"></span></button>
+              <button class="key" type="button" data-transport="repeat" aria-pressed="true" aria-label="Repetir: toda la playlist"><span data-icon="repeat"></span></button>
+            </div>
+            <div class="volume">
+              <button class="volume-btn" type="button" data-mute aria-label="Silenciar"><span data-icon="volume"></span></button>
+              <input class="volume-range" type="range" min="0" max="1" step="0.01" value="0.8" data-volume aria-label="Volumen" />
+            </div>
+          </div>
           </div>
         </section>
 
-        <div class="playlist-actions">
-          <button class="play-btn" id="playlist-play" type="button" aria-label="Reproducir playlist"><span data-icon="play"></span></button>
-          <button class="icon-btn" id="reverse-btn" type="button" aria-label="Invertir playlist" title="Invertir"><span data-icon="reverse"></span></button>
-          <button class="btn btn--ghost" id="sort-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="sort-menu" title="Ordenar"><span data-icon="sort"></span><span class="btn-label">Ordenar</span></button>
-          <button class="btn btn--ghost" id="add-from-library-btn" type="button" aria-label="Agregar de tu biblioteca" title="Agregar de tu biblioteca"><span data-icon="plus"></span><span class="btn-label">Agregar de tu biblioteca</span></button>
-          <button class="icon-btn" id="rename-btn" type="button" aria-label="Renombrar playlist" title="Renombrar"><span data-icon="edit"></span></button>
-          <button class="icon-btn icon-btn--danger" id="delete-playlist-btn" type="button" aria-label="Eliminar playlist" title="Eliminar playlist"><span data-icon="trash"></span></button>
-          <label class="search">
-            <span data-icon="search"></span>
-            <input id="search" type="search" placeholder="Buscar en la playlist" autocomplete="off" aria-label="Buscar en la playlist" />
-          </label>
-        </div>
-
-        <div class="importer">
-          <p class="importer-hint">Se agregan al final. Para ponerlas en otro lugar, arrastra los archivos justo ahí en la lista.</p>
-          <div class="importer-buttons">
-            <button class="btn btn--primary" id="import-btn" type="button"><span data-icon="upload"></span>Importar canciones</button>
-            <button class="btn btn--ghost" id="import-folder-btn" type="button"><span data-icon="folder"></span>Importar carpeta</button>
-          </div>
-          <input id="file-input" type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.opus" multiple hidden />
-          <input id="folder-input" type="file" webkitdirectory multiple hidden />
-        </div>
-
-        <ol class="queue-list" id="queue-list" aria-label="Canciones de la playlist"></ol>
-        <div class="queue-empty" id="queue-empty">
-          <span data-icon="upload"></span>
-          <p id="queue-empty-text"></p>
-        </div>
-        <p class="queue-noresults" id="queue-noresults" hidden>Ninguna canción coincide con la búsqueda.</p>
-
-        <div class="queue-foot">
-          <p class="queue-hint">Arrastra las filas para reordenar, o suelta archivos justo donde quieras que entren. Clic en una canción para reproducirla.</p>
-          <button class="btn btn--danger" id="clear-btn" type="button"><span data-icon="trash"></span><span id="clear-label">Vaciar biblioteca</span></button>
-        </div>
-      </main>
-
-      <!-- Now playing: resizable panel or full screen -->
-      <aside class="stage panel" id="stage" aria-label="Vista de reproducción">
-        <div
-          class="stage-resize"
-          id="stage-resize"
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Cambiar el ancho de la vista de reproducción"
-          aria-valuemin="280"
-          aria-valuemax="640"
-          aria-valuenow="360"
-          tabindex="0"
-          title="Arrastra para cambiar el tamaño. Doble clic restablece."
-        ></div>
-        <div class="stage-head">
-          <p class="stage-source" id="stage-source">Nada sonando</p>
-          <div class="stage-head-actions">
-            <button class="icon-btn" id="stage-full-btn" type="button" aria-label="Pantalla completa" title="Pantalla completa"><span data-icon="expand"></span></button>
-            <button class="icon-btn" id="stage-close-btn" type="button" aria-label="Cerrar vista de reproducción" title="Cerrar vista"><span data-icon="close"></span></button>
-          </div>
-        </div>
-        <div class="stage-body">
-          <div class="stage-art">
-            <div class="cover">
-              <img id="cover-img" alt="" hidden />
-              <div class="cover-empty" id="cover-empty" aria-hidden="true"><span data-icon="disc"></span></div>
+        <!-- Side B: the song that is playing, what plays next and the queue -->
+        <aside class="side-b" id="side-b" aria-label="Canción actual y cola" data-queue-expanded="false">
+          <section class="panel side-panel np-card" aria-labelledby="np-heading">
+            <h2 class="sr-only" id="np-heading">Sonando</h2>
+            <div class="np-main">
+              <div class="np-cover" aria-hidden="true">
+                <img id="cover-img" alt="" hidden />
+                <span class="cover-placeholder" id="cover-empty"></span>
+              </div>
+              <div class="np-text">
+                <p class="np-title" data-track="title">Nada sonando</p>
+                <p class="np-artist"><span class="np-mark" id="np-mark" hidden></span><span data-track="artist">Importa canciones desde tu equipo para empezar.</span></p>
+                <p class="np-album" data-track="album"></p>
+              </div>
+              <span class="np-state" aria-hidden="true"><span></span><span></span><span></span></span>
             </div>
-          </div>
-          <div class="stage-info">
-            <div class="track">
-              <h2 class="track-title" id="track-title">Nada sonando</h2>
-              <p class="track-artist" id="track-artist">Importa canciones desde tu equipo para empezar.</p>
+            <div class="np-actions">
+              <button class="pill pill--outline" id="stage-add-btn" type="button" disabled><span data-icon="plus"></span>Agregar a playlist</button>
             </div>
-            <canvas class="visualizer" id="visualizer" aria-hidden="true"></canvas>
+          </section>
+          <section class="panel side-panel next-card" aria-labelledby="upnext-heading">
+            <div class="panel-head">
+              <h2 class="panel-title" id="upnext-heading">A continuación</h2>
+            </div>
             <dl class="neighbors" aria-label="Canción anterior y siguiente">
-              <div><dt>Anterior</dt><dd id="neighbor-prev">—</dd></div>
-              <div><dt>Siguiente</dt><dd id="neighbor-next">—</dd></div>
+              <div class="neighbor neighbor--prev"><dt>Anterior</dt><dd id="neighbor-prev">—</dd></div>
+              <div class="neighbor neighbor--next"><dt>Siguiente</dt><dd id="neighbor-next">—</dd></div>
             </dl>
-            <div class="upnext">
-              <h3>A continuación</h3>
-              <ol class="upnext-list" id="upnext-list"></ol>
+          </section>
+          <section class="panel side-panel queue-card" aria-labelledby="queue-heading">
+            <div class="panel-head queue-head">
+              <h2 class="panel-title" id="queue-heading">Cola <span class="queue-count" id="queue-count"></span></h2>
+              <span class="queue-actions">
+                <button class="round-btn queue-btn" id="queue-reshuffle" type="button" aria-label="Volver a mezclar" title="Volver a mezclar" disabled><span data-icon="reshuffle"></span></button>
+                <button class="round-btn queue-btn queue-toggle" id="queue-toggle" type="button" aria-expanded="false" aria-controls="upnext-list" aria-label="Expandir cola" title="Expandir cola"><span data-icon="up"></span></button>
+              </span>
+            </div>
+            <ol class="upnext-list" id="upnext-list" aria-labelledby="queue-heading"></ol>
+          </section>
+        </aside>
+      </div>
+
+      <!-- Screen 2: the library -->
+      <div class="screen screen--library" id="library-screen">
+        <aside class="shelf panel" aria-labelledby="library-heading">
+          <h2 class="panel-title" id="library-heading">Tus playlists</h2>
+          <button class="new-tape" id="new-playlist-btn" type="button"><span data-icon="plus"></span>Nueva playlist</button>
+          <form class="new-playlist" id="new-playlist-form" hidden>
+            <label class="sr-only" for="new-playlist-name">Nombre de la playlist</label>
+            <input id="new-playlist-name" type="text" maxlength="60" autocomplete="off" placeholder="Nombre de la playlist" />
+            <div class="new-playlist-actions">
+              <button class="btn btn--primary btn--sm" type="submit">Crear</button>
+              <button class="btn btn--ghost btn--sm" id="new-playlist-cancel" type="button">Cancelar</button>
+            </div>
+          </form>
+          <ol class="spine-list library-list" id="library-list" aria-label="Playlists"></ol>
+          <p class="shelf-hint">Arrastra una canción sobre una playlist para agregarla.</p>
+
+          <section class="spotify-box" id="spotify-box" aria-labelledby="spotify-heading">
+            <h3 class="spotify-heading" id="spotify-heading"><span class="spotify-dot" id="spotify-dot" aria-hidden="true"></span>Spotify</h3>
+            <p class="spotify-user" id="spotify-user" hidden></p>
+            <p class="spotify-note" id="spotify-note" hidden></p>
+            <div class="spotify-actions">
+              <button class="btn btn--primary btn--sm" id="spotify-connect-btn" type="button">Conectar Spotify</button>
+              <button class="btn btn--ghost btn--sm" id="spotify-logout-btn" type="button" hidden>Desconectar</button>
+            </div>
+          </section>
+        </aside>
+
+        <main class="library-main panel" id="main" tabindex="-1">
+          <span class="library-band" aria-hidden="true"></span>
+
+          <!-- The open playlist -->
+          <div class="main-view" id="playlist-view">
+            <section class="playlist-head">
+              <div class="jcard" aria-hidden="true">
+                <span class="jcard-name" id="playlist-art"></span>
+                <span class="jcard-stripes"></span>
+              </div>
+              <div class="playlist-info">
+                <p class="tape-label tape-label--mint" id="playlist-meta"></p>
+                <h2 class="playlist-name" id="playlist-name">Todas las canciones</h2>
+                <form class="rename-form" id="rename-form" hidden>
+                  <label class="sr-only" for="rename-input">Nuevo nombre</label>
+                  <input id="rename-input" type="text" maxlength="60" autocomplete="off" />
+                  <button class="btn btn--primary btn--sm" type="submit">Guardar</button>
+                  <button class="btn btn--ghost btn--sm" id="rename-cancel" type="button">Cancelar</button>
+                </form>
+              </div>
+            </section>
+
+            <div class="playlist-actions">
+              <button class="key key--play key--text" id="playlist-play" type="button" aria-label="Reproducir playlist"><span data-icon="play"></span><span class="key-text" id="playlist-play-text">Reproducir</span></button>
+              <div class="sort-group" role="group" aria-label="Ordenar">
+                <button class="sort-btn" type="button" data-sort="title">Título</button>
+                <button class="sort-btn" type="button" data-sort="artist">Artista</button>
+                <button class="sort-btn" type="button" data-sort="recent">Recientes</button>
+              </div>
+              <button class="tool-btn" id="add-from-library-btn" type="button"><span data-icon="plus"></span><span class="tool-label">De tu biblioteca</span></button>
+              <button class="tool-btn tool-btn--icon" id="reverse-btn" type="button" aria-label="Invertir playlist" title="Invertir"><span data-icon="reverse"></span></button>
+              <button class="tool-btn tool-btn--icon" id="rename-btn" type="button" aria-label="Renombrar playlist" title="Renombrar"><span data-icon="edit"></span></button>
+              <button class="tool-btn tool-btn--icon tool-btn--danger" id="delete-playlist-btn" type="button" aria-label="Eliminar playlist" title="Eliminar playlist"><span data-icon="trash"></span></button>
+              <label class="filter">
+                <span data-icon="search"></span>
+                <input id="search" type="search" placeholder="Filtrar" autocomplete="off" aria-label="Filtrar esta playlist" />
+              </label>
+            </div>
+
+            <div class="importer">
+              <p class="importer-hint">Suelta archivos de audio en cualquier punto de la lista. Importados, se agregan al final.</p>
+              <button class="btn btn--cream btn--sm" id="import-btn" type="button"><span data-icon="upload"></span>Importar canciones</button>
+              <button class="btn btn--ghost btn--sm" id="import-folder-btn" type="button"><span data-icon="folder"></span>Importar carpeta</button>
+              <input id="file-input" type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.opus" multiple hidden />
+              <input id="folder-input" type="file" webkitdirectory multiple hidden />
+            </div>
+
+            <ol class="queue-list" id="queue-list" aria-label="Canciones de la playlist"></ol>
+            <div class="queue-empty" id="queue-empty">
+              <span class="empty-tape" aria-hidden="true"></span>
+              <p id="queue-empty-text"></p>
+            </div>
+            <p class="queue-noresults" id="queue-noresults" hidden>Ninguna canción coincide con la búsqueda.</p>
+
+            <div class="queue-foot">
+              <p class="queue-hint">Arrastra las filas para reordenar. Clic en una canción para reproducirla.</p>
+              <button class="btn btn--danger btn--sm" id="clear-btn" type="button"><span data-icon="trash"></span><span id="clear-label">Vaciar biblioteca</span></button>
             </div>
           </div>
-        </div>
-      </aside>
 
-      <!-- Player bar, always visible -->
-      <footer class="playerbar" aria-label="Controles de reproducción">
-        <div class="pb-track">
-          <button class="pb-cover" id="pb-cover-btn" type="button" aria-label="Mostrar vista de reproducción">
-            <img id="pb-cover-img" alt="" hidden />
-            <span class="pb-cover-empty" id="pb-cover-empty"><span data-icon="note"></span></span>
-          </button>
-          <div class="pb-text">
-            <span class="pb-title" id="pb-title">Nada sonando</span>
-            <span class="pb-artist" id="pb-artist"></span>
-          </div>
-        </div>
+          <!-- Search results (library and Spotify) -->
+          <section class="main-view search-view" id="search-view" aria-labelledby="search-view-title" hidden>
+            <h2 class="search-view-title" id="search-view-title"></h2>
+            <p class="search-empty" id="search-empty" hidden></p>
+            <section class="search-section" id="search-local-section" aria-labelledby="search-local-title">
+              <h3 class="search-section-title" id="search-local-title">En tu biblioteca</h3>
+              <p class="search-state" id="search-local-state" hidden></p>
+              <ol class="queue-list" id="search-local" aria-labelledby="search-local-title"></ol>
+            </section>
+            <section class="search-section" aria-labelledby="search-spotify-title">
+              <h3 class="search-section-title" id="search-spotify-title"><span class="spotify-badge" data-icon="spotifyBadge"></span>Spotify</h3>
+              <p class="search-state" id="search-spotify-state" hidden></p>
+              <div class="search-connect" id="search-connect" hidden>
+                <p>Conecta Spotify para buscar en todo su catálogo</p>
+                <button class="btn btn--cream btn--sm" id="search-connect-btn" type="button">Conectar Spotify</button>
+              </div>
+              <ol class="queue-list" id="search-spotify" aria-labelledby="search-spotify-title"></ol>
+            </section>
+          </section>
+        </main>
 
-        <div class="pb-center">
-          <div class="controls">
-            <button class="icon-btn" id="shuffle-mode-btn" type="button" aria-label="Orden aleatorio: desactivado" aria-pressed="false" title="Orden aleatorio: desactivado"><span data-icon="shuffle"></span></button>
-            <button class="icon-btn" id="prev-btn" type="button" aria-label="Canción anterior" title="Retroceder canción"><span data-icon="prev"></span></button>
-            <button class="pb-play" id="play-btn" type="button" aria-label="Reproducir" title="Reproducir o pausar"><span data-icon="play"></span></button>
-            <button class="icon-btn" id="next-btn" type="button" aria-label="Siguiente canción" title="Adelantar canción"><span data-icon="next"></span></button>
-            <button class="icon-btn" id="repeat-btn" type="button" aria-label="Repetir: toda la playlist" aria-pressed="true" title="Repetir: toda la playlist"><span data-icon="repeat"></span></button>
+        <!-- Lyrics: compact deck and synced lyrics -->
+        <section class="lyrics-screen panel" id="lyrics-screen" aria-label="Lyrics" hidden>
+          <span class="lyrics-band stripe-band" aria-hidden="true"></span>
+          <div class="lyrics-deck">
+            <button class="pill" id="lyrics-back-btn" type="button"><span data-icon="back"></span>Volver</button>
+            <div class="lyrics-cassette" id="lyrics-cassette"></div>
+            <div>
+              <p class="lyrics-deck-title" data-track="title"></p>
+              <p class="lyrics-deck-artist" data-track="artist"></p>
+            </div>
+            <div class="counter-row counter-row--compact">
+              <span class="counter" data-time="current">00:00</span>
+              <input class="tape-range" type="range" min="0" max="0" step="0.1" value="0" data-seek aria-label="Posición en la canción" disabled />
+              <span class="counter counter--total" data-time="total">00:00</span>
+            </div>
+            <div class="deck-keys deck-keys--compact" role="group" aria-label="Controles de reproducción">
+              <button class="key" type="button" data-transport="previous" aria-label="Canción anterior"><span data-icon="prev"></span></button>
+              <button class="key key--play" type="button" data-transport="toggle" aria-label="Reproducir"><span data-icon="play"></span></button>
+              <button class="key" type="button" data-transport="next" aria-label="Siguiente canción"><span data-icon="next"></span></button>
+            </div>
           </div>
-          <div class="progress">
-            <span class="time" id="time-current">0:00</span>
-            <input class="range" id="seek" type="range" min="0" max="0" step="0.1" value="0" aria-label="Posición en la canción" disabled />
-            <span class="time" id="time-total">0:00</span>
-          </div>
-        </div>
+          <section class="lyrics-view" id="lyrics-view" aria-label="Lyrics de la canción" tabindex="-1"></section>
+        </section>
 
-        <div class="pb-right">
-          <button class="icon-btn" id="panel-btn" type="button" aria-label="Vista de reproducción" aria-pressed="true" title="Vista de reproducción"><span data-icon="panel"></span></button>
-          <button class="icon-btn" id="full-btn" type="button" aria-label="Pantalla completa" aria-pressed="false" title="Pantalla completa"><span data-icon="expand"></span></button>
-          <div class="volume">
-            <button class="icon-btn" id="mute-btn" type="button" aria-label="Silenciar" title="Silenciar"><span data-icon="volume"></span></button>
-            <input class="range" id="volume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Volumen" />
+        <!-- Minimized player -->
+        <footer class="dock" id="dock" aria-label="Reproductor minimizado">
+          <button class="dock-cassette" type="button" data-expand aria-label="Expandir reproductor"><span id="dock-cassette"></span></button>
+          <div class="dock-track">
+            <span class="dock-title" data-track="title">Nada sonando</span>
+            <span class="dock-artist" data-track="artist"></span>
           </div>
-        </div>
-      </footer>
+          <canvas class="dock-eq" id="dock-eq" aria-hidden="true"></canvas>
+          <div class="dock-center">
+            <div class="deck-keys deck-keys--dock" role="group" aria-label="Controles de reproducción">
+              <button class="key" type="button" data-transport="shuffle" aria-pressed="false" aria-label="Orden aleatorio: desactivado"><span data-icon="shuffle"></span></button>
+              <button class="key" type="button" data-transport="previous" aria-label="Canción anterior"><span data-icon="prev"></span></button>
+              <button class="key key--play" type="button" data-transport="toggle" aria-label="Reproducir"><span data-icon="play"></span></button>
+              <button class="key" type="button" data-transport="next" aria-label="Siguiente canción"><span data-icon="next"></span></button>
+              <button class="key" type="button" data-transport="repeat" aria-pressed="true" aria-label="Repetir: toda la playlist"><span data-icon="repeat"></span></button>
+            </div>
+            <div class="counter-row counter-row--dock">
+              <span class="counter" data-time="current">00:00</span>
+              <input class="tape-range" type="range" min="0" max="0" step="0.1" value="0" data-seek aria-label="Posición en la canción" disabled />
+              <span class="counter counter--total" data-time="total">00:00</span>
+            </div>
+          </div>
+          <div class="dock-end">
+            <button class="round-btn" type="button" data-lyrics-toggle aria-pressed="false" aria-label="Mostrar lyrics" title="Mostrar lyrics"><span data-icon="mic"></span></button>
+            <button class="pill pill--cream" type="button" data-expand><span data-icon="expand"></span>Expandir</button>
+            <div class="volume volume--dock">
+              <button class="volume-btn" type="button" data-mute aria-label="Silenciar"><span data-icon="volume"></span></button>
+              <input class="volume-range" type="range" min="0" max="1" step="0.01" value="0.8" data-volume aria-label="Volumen" />
+            </div>
+          </div>
+        </footer>
+      </div>
     </div>
 
     <!-- Floating menu: play a song next or add it to a playlist -->
     <div class="menu" id="add-menu" role="menu" hidden></div>
-
-    <!-- Floating menu: sort the open playlist -->
-    <div class="menu" id="sort-menu" role="menu" aria-labelledby="sort-btn" hidden>
-      <p class="menu-title">Ordenar por</p>
-      <button class="menu-item" type="button" role="menuitem" data-sort="title"><span data-icon="note"></span><span class="menu-label">Título (A–Z)</span></button>
-      <button class="menu-item" type="button" role="menuitem" data-sort="artist"><span data-icon="user"></span><span class="menu-label">Artista (A–Z)</span></button>
-      <button class="menu-item" type="button" role="menuitem" data-sort="recent"><span data-icon="clock"></span><span class="menu-label">Agregadas recientemente</span></button>
-    </div>
 
     <!-- Pick songs from the library -->
     <dialog class="dialog dialog--picker" id="picker-dialog" aria-labelledby="picker-title">
       <form method="dialog" class="picker">
         <h2 id="picker-title">Agregar canciones</h2>
         <p class="dialog-note" id="picker-note"></p>
-        <label class="search">
+        <label class="filter filter--wide">
           <span data-icon="search"></span>
           <input id="picker-search" type="search" placeholder="Buscar en tu biblioteca" autocomplete="off" aria-label="Buscar en tu biblioteca" />
         </label>

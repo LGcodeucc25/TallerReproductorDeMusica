@@ -1,10 +1,10 @@
 import type { Playlist } from '../core/Playlist';
 import type { Song } from '../core/Song';
 import type { CoverCache } from './CoverCache';
-import { byId, create, formatTime } from './dom';
+import { byId } from './dom';
 import { filesFromDrop, hasFiles } from './fileDrop';
-import { icons } from './icons';
 import { SONG_DRAG_TYPE } from './SidebarView';
+import { createSongRow } from './songRow';
 import { strings } from './strings';
 
 export interface QueueHandlers {
@@ -14,6 +14,14 @@ export interface QueueHandlers {
   onAddTo(songId: string, anchor: HTMLElement): void;
   /** Files dropped from the computer into the gap `slotIndex` (0 = before the first row). */
   onDropFiles(files: File[], slotIndex: number): void;
+}
+
+export interface QueueRenderState {
+  covers: CoverCache;
+  loadedId: string | null;
+  playing: boolean;
+  isLibrary: boolean;
+  isPlayable(song: Song): boolean;
 }
 
 /** Songs of the open playlist: play, add to a playlist, move, remove, drag. */
@@ -30,84 +38,28 @@ export class QueueView {
     this.bindDrag();
   }
 
-  render(playlist: Playlist, covers: CoverCache, loadedId: string | null, playing: boolean, isLibrary: boolean): void {
+  render(playlist: Playlist, state: QueueRenderState): void {
     const fragment = document.createDocumentFragment();
     let index = 0;
     for (const song of playlist.songs) {
-      fragment.append(this.row(song, index, song.id === loadedId, playing, isLibrary, covers));
+      fragment.append(
+        createSongRow(song, {
+          index,
+          isLoaded: song.id === state.loadedId,
+          playing: state.playing,
+          playable: state.isPlayable(song),
+          covers: state.covers,
+          actions: ['add', 'up', 'down', 'remove'],
+          removeLabel: state.isLibrary ? strings.row.deleteFromLibrary(song.title) : strings.row.removeFromPlaylist(song.title),
+          draggable: true,
+        }),
+      );
       index++;
     }
     this.list.replaceChildren(fragment);
     this.empty.hidden = playlist.size > 0;
     this.list.hidden = playlist.size === 0;
     this.applyFilter();
-  }
-
-  private row(song: Song, index: number, isLoaded: boolean, playing: boolean, isLibrary: boolean, covers: CoverCache): HTMLLIElement {
-    const li = create('li', 'row');
-    li.dataset.index = String(index);
-    li.dataset.songId = song.id;
-    li.draggable = true;
-    li.dataset.search = `${song.title} ${song.artist} ${song.album}`.toLowerCase();
-    if (isLoaded) {
-      li.classList.add('is-current');
-      li.setAttribute('aria-current', 'true');
-    }
-
-    const grip = create('span', 'row-grip');
-    grip.innerHTML = icons.grip;
-    grip.title = strings.row.gripHint;
-
-    const pos = create('span', 'row-pos');
-    if (isLoaded && playing) {
-      pos.innerHTML = '<span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>';
-      pos.setAttribute('aria-label', strings.playing);
-    } else {
-      pos.textContent = String(index + 1);
-    }
-
-    const coverUrl = covers.get(song);
-    let cover: HTMLElement;
-    if (coverUrl) {
-      const img = create('img', 'row-cover');
-      img.src = coverUrl;
-      img.alt = '';
-      img.loading = 'lazy';
-      cover = img;
-    } else {
-      cover = create('span', 'row-cover row-cover--empty');
-      cover.innerHTML = icons.note;
-    }
-
-    const main = create('button', 'row-main');
-    main.type = 'button';
-    main.dataset.action = 'play';
-    main.setAttribute('aria-label', strings.row.play(song.title, song.artist, index + 1));
-    main.append(create('span', 'row-title', song.title), create('span', 'row-artist', song.artist));
-
-    const album = create('span', 'row-album', song.album);
-    const time = create('span', 'row-time', song.duration ? formatTime(song.duration) : '–');
-
-    const actions = create('div', 'row-actions');
-    actions.append(
-      this.actionButton('add', icons.plus, strings.row.addTo(song.title)),
-      this.actionButton('up', icons.up, strings.row.moveUp(song.title)),
-      this.actionButton('down', icons.down, strings.row.moveDown(song.title)),
-      this.actionButton('remove', icons.trash, isLibrary ? strings.row.deleteFromLibrary(song.title) : strings.row.removeFromPlaylist(song.title)),
-    );
-
-    li.append(grip, pos, cover, main, album, time, actions);
-    return li;
-  }
-
-  private actionButton(action: string, icon: string, label: string): HTMLButtonElement {
-    const button = create('button', `row-btn row-btn--${action}`);
-    button.type = 'button';
-    button.dataset.action = action;
-    button.setAttribute('aria-label', label);
-    button.title = label;
-    button.innerHTML = icon;
-    return button;
   }
 
   private onClick(event: MouseEvent): void {

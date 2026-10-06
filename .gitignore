@@ -13,6 +13,7 @@ npm-debug.log*
 .env
 .env.*
 *.local
+!.env.example
 
 # Audio files (music is imported in the browser, never committed)
 *.mp3
@@ -37,3 +38,5 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 desktop.ini
+# Approved mockups of the redesign (reference only, never imported)
+design-reference/

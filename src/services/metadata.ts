@@ -1,4 +1,4 @@
-import type { Song } from '../core/Song';
+import type { LocalSong } from '../core/Song';
 import { createId } from '../core/id';
 import { hasId3Header, parseId3v2, readSyncsafe, type TagInfo } from './id3';
 
@@ -13,11 +13,12 @@ export function isAudioFile(file: File): boolean {
  * Builds a Song from a local file: ID3 tags, duration and file-name fallback.
  * `unknownArtist` is the display text used when no artist can be found.
  */
-export async function readSong(file: File, unknownArtist: string): Promise<Song> {
+export async function readSong(file: File, unknownArtist: string): Promise<LocalSong> {
   const [tags, duration] = await Promise.all([readTags(file), readDuration(file)]);
   const fromName = parseFileName(file.name);
 
   return {
+    source: 'local',
     id: createId(),
     title: tags?.title || fromName.title,
     artist: tags?.artist || fromName.artist || unknownArtist,

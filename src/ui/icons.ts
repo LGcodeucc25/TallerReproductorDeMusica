@@ -10,6 +10,10 @@ export const icons = {
   next: svg('<path d="M5 6.2v11.6a1 1 0 0 0 1.55.83L15 13v4.5a1 1 0 0 0 2 0v-11a1 1 0 0 0-2 0V11L6.55 5.37A1 1 0 0 0 5 6.2z"/>', true),
   prev: svg('<path d="M19 6.2v11.6a1 1 0 0 1-1.55.83L9 13v4.5a1 1 0 0 1-2 0v-11a1 1 0 0 1 2 0V11l8.45-5.63A1 1 0 0 1 19 6.2z"/>', true),
   shuffle: svg('<path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="M4 4l5 5"/>'),
+  /** Shuffle arrows with a small refresh mark: "shuffle the queue again". */
+  reshuffle: svg(
+    '<g transform="translate(5 -1) scale(0.8)"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="M4 4l5 5"/></g><path d="M8 19a3 3 0 1 1-.9-2.1"/><path d="M7.4 14.4v2.6H4.8"/>',
+  ),
   repeat: svg('<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>'),
   repeatOne: svg('<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/><path d="M11 10h1v4"/>'),
   sort: svg('<path d="M4 6h16"/><path d="M4 12h11"/><path d="M4 18h6"/>'),
@@ -36,6 +40,15 @@ export const icons = {
   panel: svg('<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M14 4v16"/><path d="M16.5 9h2"/>'),
   library: svg('<path d="M4 4v16"/><path d="M9 4v16"/><path d="m14 4.5 5 15"/>'),
   check: svg('<path d="m5 12.5 4.5 4.5L19 7.5"/>'),
+  mic: svg('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/>'),
+  spotify: svg(
+    '<circle cx="12" cy="12" r="9.5"/><path d="M7 9.4c3.6-1 7.6-.7 10.6 1"/><path d="M7.6 12.7c2.9-.8 6.1-.5 8.7.9"/><path d="M8.2 15.9c2.3-.6 4.7-.4 6.7.7"/>',
+  ),
+  /** Spotify attribution badge: green disc with dark arcs (from the mockups). */
+  spotifyBadge:
+    '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="11" fill="#1ED760"/><path d="M6.5 9.5c3.8-1.2 8-.9 11 1M7.3 12.6c3.2-.9 6.6-.6 9.2.9M8 15.5c2.6-.6 5.2-.4 7.3.7" stroke="#0A0A0C" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg>',
+  back: svg('<path d="M15 6l-6 6 6 6"/>'),
+  external: svg('<path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>'),
   note: svg('<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>'),
 } as const;
 

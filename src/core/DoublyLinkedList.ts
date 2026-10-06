@@ -156,6 +156,22 @@ export class DoublyLinkedList<T> implements Iterable<T> {
   }
 
   /**
+   * Shuffles only the nodes after `anchor` with the same relinking Fisher–Yates:
+   * `anchor` and every node before it keep their place. No new nodes. O(k²) for the
+   * k nodes after `anchor` (each pick walks from `anchor`).
+   */
+  shuffleAfter(anchor: Node<T>, random: () => number = Math.random): void {
+    let count = 0;
+    for (let node = anchor.next; node; node = node.next) count++;
+    for (let remaining = count; remaining > 1; remaining--) {
+      let node = anchor.next!;
+      for (let steps = Math.floor(random() * remaining); steps > 0; steps--) node = node.next!;
+      this.unlink(node);
+      this.linkAtEnd(node);
+    }
+  }
+
+  /**
    * Stable merge sort that relinks the existing nodes: no new nodes, no array copy.
    * The `next` chain is sorted first, then a single pass rebuilds every `prev`
    * link and the tail. O(n log n) time, O(log n) recursion depth.

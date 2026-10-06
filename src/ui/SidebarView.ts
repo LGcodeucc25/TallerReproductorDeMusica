@@ -1,8 +1,6 @@
 import type { Playlist } from '../core/Playlist';
 import { ALL_SONGS_ID, type PlaylistLibrary } from '../core/PlaylistLibrary';
-import type { CoverCache } from './CoverCache';
 import { byId, create, formatTotal } from './dom';
-import { icons } from './icons';
 import { strings } from './strings';
 
 export const SONG_DRAG_TYPE = 'application/x-music-player-song';
@@ -15,7 +13,7 @@ export interface SidebarHandlers {
   onDropSong(playlistId: string, songId: string): void;
 }
 
-/** The library sidebar: the DoublyLinkedList<Playlist>, one row per node. */
+/** The shelf of the library: the DoublyLinkedList<Playlist>, one cassette spine per node. */
 export class SidebarView {
   private readonly list = byId<HTMLOListElement>('library-list');
   private readonly form = byId<HTMLFormElement>('new-playlist-form');
@@ -35,7 +33,7 @@ export class SidebarView {
     });
 
     this.list.addEventListener('click', (event) => {
-      const item = (event.target as HTMLElement).closest<HTMLElement>('.lib-item');
+      const item = (event.target as HTMLElement).closest<HTMLElement>('.spine');
       if (item?.dataset.id) this.handlers.onOpen(item.dataset.id);
     });
     this.bindDrag();
@@ -53,53 +51,18 @@ export class SidebarView {
     this.nameInput.value = '';
   }
 
-  render(library: PlaylistLibrary, viewedId: string, activeId: string, playing: boolean, covers: CoverCache): void {
+  render(library: PlaylistLibrary, viewedId: string, activeId: string, playing: boolean): void {
     const fragment = document.createDocumentFragment();
     let index = 0;
     for (const playlist of library.playlists) {
-      fragment.append(this.item(playlist, index, playlist.id === viewedId, playlist.id === activeId && playing, covers));
+      const li = create('li', 'lib-row');
+      li.dataset.index = String(index);
+      li.draggable = playlist.id !== ALL_SONGS_ID;
+      li.append(createSpine(playlist, { viewed: playlist.id === viewedId, playing: playlist.id === activeId && playing }));
+      fragment.append(li);
       index++;
     }
     this.list.replaceChildren(fragment);
-  }
-
-  private item(playlist: Playlist, index: number, isViewed: boolean, isPlaying: boolean, covers: CoverCache): HTMLLIElement {
-    const isAll = playlist.id === ALL_SONGS_ID;
-    const li = create('li', 'lib-row');
-    li.dataset.index = String(index);
-    li.draggable = !isAll;
-
-    const button = create('button', 'lib-item');
-    button.type = 'button';
-    button.dataset.id = playlist.id;
-    if (isViewed) button.setAttribute('aria-current', 'page');
-    if (isPlaying) button.classList.add('is-playing');
-
-    const art = create('span', `lib-art${isAll ? ' lib-art--all' : ''}`);
-    const firstCover = isAll ? null : covers.get(firstSongWithCover(playlist));
-    if (firstCover) {
-      const img = create('img');
-      img.src = firstCover;
-      img.alt = '';
-      art.append(img);
-    } else {
-      art.innerHTML = isAll ? icons.library : icons.note;
-    }
-
-    const text = create('span', 'lib-text');
-    const size = playlist.size;
-    const meta = strings.sidebar.meta(isAll, size, size ? formatTotal(playlist.totalDuration()) : null);
-    text.append(create('span', 'lib-name', playlist.name), create('span', 'lib-meta', meta));
-
-    button.append(art, text);
-    if (isPlaying) {
-      const eq = create('span', 'eq');
-      eq.setAttribute('aria-label', strings.playing);
-      eq.innerHTML = '<i></i><i></i><i></i>';
-      button.append(eq);
-    }
-    li.append(button);
-    return li;
   }
 
   // ---- Drag: reorder playlists, or drop a song from the main list ----
@@ -142,7 +105,7 @@ export class SidebarView {
       const transfer = event.dataTransfer;
       if (!row || !transfer) return;
       const songId = transfer.getData(SONG_DRAG_TYPE);
-      const playlistId = row.querySelector<HTMLElement>('.lib-item')?.dataset.id;
+      const playlistId = row.querySelector<HTMLElement>('.spine')?.dataset.id;
 
       if (songId && playlistId) {
         event.preventDefault();
@@ -181,7 +144,48 @@ export class SidebarView {
   }
 }
 
-function firstSongWithCover(playlist: Playlist) {
-  for (const song of playlist.songs) if (song.cover) return song;
-  return null;
+/** Spine stripes: the all-songs playlist is always the blue one; the others get a stable colour from their id. */
+const SPINE_STRIPES = [
+  'linear-gradient(90deg, #F59A1E 0 33%, #DB3A1F 33% 66%, #A3141E 66%)',
+  'linear-gradient(90deg, #1E6286 0 33%, #6CCFC6 33% 66%, #F5C59A 66%)',
+  'linear-gradient(90deg, #F5C59A 0 33%, #F59A1E 33% 66%, #DB3A1F 66%)',
+];
+const LIBRARY_STRIPE = 'linear-gradient(90deg, #0F3A5C 0 33%, #2E9AA5 33% 66%, #6CCFC6 66%)';
+
+export function spineStripe(playlist: Playlist): string {
+  if (playlist.id === ALL_SONGS_ID) return LIBRARY_STRIPE;
+  let hash = 0;
+  for (const char of playlist.id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return SPINE_STRIPES[hash % SPINE_STRIPES.length];
+}
+
+/** A playlist as a cassette spine: stripes, name and the number of songs. */
+export function createSpine(playlist: Playlist, state: { viewed: boolean; playing: boolean }): HTMLButtonElement {
+  const isAll = playlist.id === ALL_SONGS_ID;
+  const size = playlist.size;
+  const button = create('button', 'spine');
+  button.type = 'button';
+  button.dataset.id = playlist.id;
+  if (state.viewed) button.setAttribute('aria-current', 'page');
+  if (state.playing) button.classList.add('is-playing');
+  const meta = strings.sidebar.meta(isAll, size, size ? formatTotal(playlist.totalDuration()) : null);
+  button.setAttribute('aria-label', `${playlist.name}. ${meta}${state.playing ? `. ${strings.playing}` : ''}`);
+  button.title = meta;
+
+  const stripe = create('span', 'spine-stripe');
+  stripe.style.setProperty('--spine', spineStripe(playlist));
+  stripe.setAttribute('aria-hidden', 'true');
+  const name = create('span', 'spine-name', playlist.name);
+  name.setAttribute('aria-hidden', 'true');
+  const count = create('span', 'spine-count', String(size).padStart(2, '0'));
+  count.setAttribute('aria-hidden', 'true');
+  button.append(stripe, name);
+  if (state.playing) {
+    const eq = create('span', 'eq');
+    eq.setAttribute('aria-hidden', 'true');
+    eq.innerHTML = '<i></i><i></i><i></i>';
+    button.append(eq);
+  }
+  button.append(count);
+  return button;
 }

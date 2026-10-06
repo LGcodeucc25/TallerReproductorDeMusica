@@ -1,7 +1,7 @@
 import type { Playlist } from '../core/Playlist';
 import type { Song } from '../core/Song';
 import type { CoverCache } from './CoverCache';
-import { byId, create, formatTime } from './dom';
+import { byId, create, formatCounter } from './dom';
 import { icons } from './icons';
 import { strings } from './strings';
 
@@ -63,7 +63,7 @@ export class LibraryPicker {
 
       const text = create('span', 'picker-text');
       text.append(create('span', 'picker-title', song.title), create('span', 'picker-artist', song.artist));
-      label.append(input, thumb, text, create('span', 'picker-meta', already ? strings.picker.alreadyThere : song.duration ? formatTime(song.duration) : ''));
+      label.append(input, thumb, text, create('span', 'picker-meta', already ? strings.picker.alreadyThere : song.duration ? formatCounter(song.duration) : ''));
       li.append(label);
       fragment.append(li);
     }

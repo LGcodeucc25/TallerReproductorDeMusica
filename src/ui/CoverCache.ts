@@ -1,11 +1,16 @@
 import type { Song } from '../core/Song';
 
-/** Keeps one object URL per cover so images are not recreated on every render. */
+/**
+ * Cover image URL of a song: one object URL per embedded cover of a local file (so
+ * images are not recreated on every render), or the Spotify image URL as is.
+ */
 export class CoverCache {
   private readonly urls = new Map<string, string>();
 
   get(song: Song | null): string | null {
-    if (!song?.cover) return null;
+    if (!song) return null;
+    if (song.source === 'spotify') return song.coverUrl;
+    if (!song.cover) return null;
     let url = this.urls.get(song.id);
     if (!url) {
       url = URL.createObjectURL(song.cover);

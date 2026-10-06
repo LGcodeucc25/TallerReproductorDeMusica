@@ -24,6 +24,12 @@ export function formatTime(seconds: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
 }
 
+/** Tape counter style, minutes always with two digits: "02:18" (or "1:02:18" past an hour). */
+export function formatCounter(seconds: number): string {
+  const text = formatTime(seconds);
+  return text.split(':').length === 2 ? text.padStart(5, '0') : text;
+}
+
 export function formatTotal(seconds: number): string {
   if (seconds > 0 && seconds < 60) return `${Math.round(seconds)} s`;
   const minutes = Math.round(seconds / 60);

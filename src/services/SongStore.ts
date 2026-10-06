@@ -1,14 +1,20 @@
 import type { QueueSnapshot } from '../core/PlaybackQueue';
 import type { PlaylistSnapshot, RepeatMode } from '../core/Playlist';
-import type { Song } from '../core/Song';
+import { migrateSong, type Song, type SpotifySong, type StoredSong } from '../core/Song';
+import type { CachedLyrics, LyricsStore } from './lyrics/LyricsService';
 
-export type DockMode = 'mini' | 'panel';
+/** The two main screens: the cassette player ("now") and the library. */
+export type ScreenView = 'now' | 'library';
 
-/** Saved queue. `order: null` means "rebuild it from the source playlist" (migrated states). */
-export type SavedQueue = Omit<QueueSnapshot, 'order'> & { order: string[] | null };
+/**
+ * Saved queue. `order: null` means "rebuild it from the source playlist" (migrated
+ * states). `extraSongs` keeps Spotify songs that are queued but not in the library
+ * (for example played from search results).
+ */
+export type SavedQueue = Omit<QueueSnapshot, 'order'> & { order: string[] | null; extraSongs?: SpotifySong[] };
 
 export interface PersistedState {
-  version: 4;
+  version: 6;
   /** Every playlist in library order; the first one holds every song. */
   playlists: PlaylistSnapshot[];
   viewedId: string;
@@ -16,11 +22,29 @@ export interface PersistedState {
   volume: number;
   /** Playback position of the current song, in seconds. */
   position: number;
-  dock: DockMode;
-  stageWidth: number;
+  /** The screen that was open (restored when a song is restored too). */
+  view: ScreenView;
+  /** Whether the queue on the player screen was expanded (missing in states saved before it existed). */
+  queueExpanded?: boolean;
   /** The playback queue, independent from the playlists. */
   queue: SavedQueue | null;
 }
+
+/** Version 5: before the redesign, with a resizable side panel instead of two screens. */
+interface StateV5 {
+  version: 5;
+  playlists: PlaylistSnapshot[];
+  viewedId: string;
+  repeat: RepeatMode;
+  volume: number;
+  position: number;
+  dock: 'mini' | 'panel';
+  stageWidth: number;
+  queue: SavedQueue | null;
+}
+
+/** Version 4: the same shape as 5, saved before Spotify songs existed. */
+type StateV4 = Omit<StateV5, 'version'> & { version: 4 };
 
 /** Version 3: playlists had a current song and shuffle reordered the active playlist itself. */
 interface StateV3 {
@@ -31,7 +55,7 @@ interface StateV3 {
   repeat: RepeatMode;
   volume: number;
   position: number;
-  dock: DockMode;
+  dock: 'mini' | 'panel';
   stageWidth: number;
   shuffle: boolean;
   /** The shuffled playlist and its order before shuffling. */
@@ -53,9 +77,11 @@ interface LegacyState {
 const DB_NAME = 'doubly-linked-music-player';
 /** Database used before the rename; copied once into DB_NAME and then deleted. */
 const LEGACY_DB_NAME = 'reproductor-listas-dobles';
-const DB_VERSION = 1;
+/** Version 2 added the "lyrics" store. */
+const DB_VERSION = 2;
 const SONGS = 'songs';
 const META = 'meta';
+const LYRICS = 'lyrics';
 const STATE_KEY = 'playlist-state';
 const LEGACY_COPIED_KEY = 'legacy-db-copied';
 
@@ -70,7 +96,7 @@ function promisify<T>(request: IDBRequest<T>): Promise<T> {
  * Saves the imported files, the playlists and the queue in the browser (IndexedDB),
  * so each user keeps their own music between visits. Nothing is uploaded.
  */
-export class SongStore {
+export class SongStore implements LyricsStore {
   private db: Promise<IDBDatabase> | null = null;
 
   async putSong(song: Song): Promise<void> {
@@ -83,8 +109,19 @@ export class SongStore {
 
   async getSongs(): Promise<Map<string, Song>> {
     const db = await this.open();
-    const songs = await promisify<Song[]>(db.transaction(SONGS, 'readonly').objectStore(SONGS).getAll());
+    const saved = await promisify<StoredSong[]>(db.transaction(SONGS, 'readonly').objectStore(SONGS).getAll());
+    // Songs saved before Spotify support have no `source`: they become local songs.
+    const songs = saved.map(migrateSong);
     return new Map(songs.map((song) => [song.id, song]));
+  }
+
+  async getLyrics(songId: string): Promise<CachedLyrics | undefined> {
+    const db = await this.open();
+    return promisify<CachedLyrics | undefined>(db.transaction(LYRICS, 'readonly').objectStore(LYRICS).get(songId));
+  }
+
+  async putLyrics(songId: string, entry: CachedLyrics): Promise<void> {
+    await this.write([LYRICS], (tx) => tx.objectStore(LYRICS).put(entry, songId));
   }
 
   async saveState(state: PersistedState): Promise<void> {
@@ -93,7 +130,7 @@ export class SongStore {
 
   async loadState(): Promise<PersistedState | null> {
     const db = await this.open();
-    const state = await promisify<PersistedState | StateV3 | StateV2 | LegacyState | undefined>(
+    const state = await promisify<PersistedState | StateV5 | StateV4 | StateV3 | StateV2 | LegacyState | undefined>(
       db.transaction(META, 'readonly').objectStore(META).get(STATE_KEY),
     );
     return state ? migrateState(state) : null;
@@ -123,6 +160,7 @@ export class SongStore {
         const upgrading = request.result;
         if (!upgrading.objectStoreNames.contains(SONGS)) upgrading.createObjectStore(SONGS, { keyPath: 'id' });
         if (!upgrading.objectStoreNames.contains(META)) upgrading.createObjectStore(META);
+        if (!upgrading.objectStoreNames.contains(LYRICS)) upgrading.createObjectStore(LYRICS);
       };
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
@@ -203,8 +241,20 @@ function deleteDatabase(name: string): Promise<void> {
 }
 
 /** Brings any saved state up to the current version. */
-export function migrateState(state: PersistedState | StateV3 | StateV2 | LegacyState): PersistedState {
-  if ('version' in state && state.version === 4) return state;
+export function migrateState(state: PersistedState | StateV5 | StateV4 | StateV3 | StateV2 | LegacyState): PersistedState {
+  if ('version' in state && state.version === 6) return state;
+  return fromV5(toV5(state));
+}
+
+/** Version 6 replaced the side panel and the dock modes by two screens; the player screen opens first. */
+function fromV5(state: StateV5): PersistedState {
+  const { dock: _dock, stageWidth: _stageWidth, ...rest } = state;
+  return { ...rest, version: 6, view: 'now' };
+}
+
+function toV5(state: StateV5 | StateV4 | StateV3 | StateV2 | LegacyState): StateV5 {
+  if ('version' in state && state.version === 5) return state;
+  if ('version' in state && state.version === 4) return { ...state, version: 5 };
   if ('version' in state && state.version === 3) return fromV3(state);
   // Older states start with "repeat the playlist" on, the default since version 3.
   if ('version' in state && state.version === 2) return fromV3({ ...state, version: 3, repeat: 'all', shuffle: false, shuffled: null });
@@ -212,7 +262,7 @@ export function migrateState(state: PersistedState | StateV3 | StateV2 | LegacyS
   // The single-playlist format becomes the library playlist ("all").
   const legacy = state as LegacyState;
   return {
-    version: 4,
+    version: 5,
     playlists: [{ id: 'all', name: '', order: legacy.order ?? [] }],
     viewedId: 'all',
     repeat: 'all',
@@ -229,7 +279,7 @@ export function migrateState(state: PersistedState | StateV3 | StateV2 | LegacyS
  * that order is put back into the playlist, and the queue is rebuilt from the
  * previously active playlist with its current song.
  */
-function fromV3(state: StateV3): PersistedState {
+function fromV3(state: StateV3): StateV5 {
   const playlists = state.playlists.map(({ id, name, order }) => {
     if (state.shuffled?.playlistId !== id) return { id, name, order };
     const present = new Set(order);
@@ -239,7 +289,7 @@ function fromV3(state: StateV3): PersistedState {
   });
   const active = state.playlists.find((playlist) => playlist.id === state.activeId);
   return {
-    version: 4,
+    version: 5,
     playlists,
     viewedId: state.viewedId,
     repeat: state.repeat,
